@@ -1,5 +1,6 @@
 rm(list=ls())
 #LIBRARIES
+library(readr)
 library(geosphere)
 library(utf8)
 library(statcanR)
