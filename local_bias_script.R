@@ -14,7 +14,6 @@ usfips <- usfips[c(1, 2)]
 colnames(usfips) <- c("STATE", "state")
 ##POPULATION
 ###US
-key <- "2234041167a163991b3948bac54302564786a463"
 st_pop <- getCensus(
   name = "dec/dhc",
   vars = "P1_001N",
