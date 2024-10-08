@@ -5,12 +5,34 @@ library(geosphere)
 library(utf8)
 library(statcanR)
 library(bea.R)
+library(censusapi)
 #DATA IMPORTS
 url_df <- read.csv("url_df.csv")
+usfips <- read.csv("https://www2.census.gov/geo/docs/reference/state.txt",
+                   sep = "|")
+usfips <- usfips[c(1, 2)]
+colnames(usfips) <- c("STATE", "state")
+##POPULATION
+###US
+key <- "2234041167a163991b3948bac54302564786a463"
+st_pop <- getCensus(
+  name = "dec/dhc",
+  vars = "P1_001N",
+  region = "state:*",
+  vintage = 2020
+)
+st_pop$state <- as.numeric(st_pop$state)
+colnames(st_pop) <- c("STATE", "pop")
+st_pop <- merge(st_pop, usfips, by="STATE")
+st_pop <- st_pop[,c(3, 2)]
+###CANADA
+
 ##GEOGRAPHIC DATA
-st_lat_long <- read_csv("st_lat_long.csv")
-canprov <- read_csv("canprov.csv")
+###Centers of Population
+st_lat_long <- read_csv("st_pop_center.csv") #From Census.gov - 2020
+canprov <- read_csv("canprovcenter.csv") #Calculated with ChatGPT - 2021
 st_abbr <- read_csv("st_abbr.csv")
+
 
 #DISTANCE DATA
 geodata <- as.data.frame(rbind(as.matrix(st_lat_long),
