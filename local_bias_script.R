@@ -172,9 +172,3 @@ reg2 <- lm(asinh(value) ~ asinh(from_gdp) +
 summary(reg2)
 
 
-# ggplot(data = world) +
-#   geom_sf() +
-#   geom_point(data = geodata, aes(x = long, y = lat), size = 4,
-#              shape = 23, fill = "darkred") +
-#   coord_sf(xlim = c(-172, -48), ylim = c(23, 72), expand = FALSE)
-
