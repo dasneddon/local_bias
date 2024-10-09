@@ -1,4 +1,6 @@
 .Rproj.user
+*.zip
+*.pdf
 .Rhistory
 .RData
 .Ruserdata
