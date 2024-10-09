@@ -68,7 +68,7 @@ gravitymap <- function (x){
   
   ggplot(data = worldz) +
     geom_sf() +
-    ggtitle(paste("Gravity Map for", prov_abr[prov_abr$from==x,])) +
+    ggtitle(paste("Import Gravity Map for", prov_abr[prov_abr$from==x,])) +
     geom_sf(data = tstpr, 
             aes(fill =value)) +
     scale_fill_gradient(low="red", high= "green") +
@@ -242,5 +242,8 @@ reg2 <- lm(asinh(value) ~ asinh(from_gdp) +
 summary(reg2)
 
 for(i in unique(prov_abr$from)){
-  ggsave(paste0(i,".pdf"),gravitymap(i))
+  ggsave(paste0(i,".png"),gravitymap(i),
+         device = "png",
+         path="maps",
+         create.dir = TRUE)
 }
