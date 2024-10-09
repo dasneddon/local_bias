@@ -6,6 +6,7 @@ library(utf8)
 library(statcanR)
 library(bea.R)
 library(censusapi)
+source("na-map.R")
 #DATA IMPORTS
 url_df <- read.csv("url_df.csv")
 usfips <- read.csv("https://www2.census.gov/geo/docs/reference/state.txt",
@@ -161,10 +162,19 @@ us_ca <- merge(us_ca, geoframe, by = "fttag")
 us_ca <- merge(us_ca, gdp_f, by = "from")
 us_ca <- merge(us_ca, gdp_t, by = "to")
 us_ca <- us_ca[,c(2,1,7,8,5,6,4)]
+#SPLIT TO EACH PROVINCE
+us_ca_split <- split(us_ca, list(us_ca$to))
 #REGRESSION
 
 reg2 <- lm(asinh(value) ~ asinh(from_gdp) +
              asinh(to_gdp) + asinh(km) +
              domestic, data=us_ca)
 summary(reg2)
+
+
+# ggplot(data = world) +
+#   geom_sf() +
+#   geom_point(data = geodata, aes(x = long, y = lat), size = 4,
+#              shape = 23, fill = "darkred") +
+#   coord_sf(xlim = c(-172, -48), ylim = c(23, 72), expand = FALSE)
 
