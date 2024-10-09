@@ -17,6 +17,7 @@ library(usmap)
 library(spData) 
 library("tools")
 
+#FUNCTION FOR CREATING MAPS
 gravitymap <- function (x){
   theme_set(theme_bw())
   sf_use_s2(FALSE)
