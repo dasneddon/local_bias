@@ -16,6 +16,10 @@ library(stringr)
 library(usmap)
 library(spData) 
 library("tools")
+library("modelsummary")
+library(AER)
+options("modelsummary_factory_default" = "kableExtra")
+options(scipen = 999)
 
 #FUNCTION FOR CREATING MAPS
 gravitymap <- function (x){
@@ -61,8 +65,8 @@ gravitymap <- function (x){
   tabrs <- rbind(st_abbr, prov_abr2)
   colnames(tabrs)[1] <- "NAME"
   colnames(tf) <- colnames(us_ca)
-  tf$value <- asinh(tf$value)
-  tf <- tf[c(1, 7)]
+  tf$value <- log(tf$value)
+  tf <- tf[c(2, 7)]
   colnames(tf)[1] <- "State"
   tstpr <- merge(stpr, tabrs, by = "NAME")
   tstpr <- merge(tstpr, tf, by = "State")
@@ -79,31 +83,21 @@ gravitymap <- function (x){
              crs = st_crs("ESRI:102010"))
 
 }
+
+
 #DATA IMPORTS
 url_df <- read.csv("url_df.csv")
 usfips <- read.csv("https://www2.census.gov/geo/docs/reference/state.txt",
                    sep = "|")
 usfips <- usfips[c(1, 2)]
 colnames(usfips) <- c("STATE", "state")
-##POPULATION
-###US
-st_pop <- getCensus(
-  name = "dec/dhc",
-  vars = "P1_001N",
-  region = "state:*",
-  vintage = 2020
-)
-st_pop$state <- as.numeric(st_pop$state)
-colnames(st_pop) <- c("STATE", "pop")
-st_pop <- merge(st_pop, usfips, by="STATE")
-st_pop <- st_pop[,c(3, 2)]
-###CANADA
 
 ##GEOGRAPHIC DATA
 ###Centers of Population
 st_lat_long <- read_csv("st_pop_center.csv") #From Census.gov - 2020
 canprov <- read_csv("canprovcenter.csv") #Calculated with ChatGPT - 2021
 st_abbr <- read_csv("st_abbr.csv")
+
 
 
 #DISTANCE DATA
@@ -227,20 +221,139 @@ gdp_f <- rbind(cagdp_f,usgdp_f)
 rm(cagdp_f, usgdp_f)
 gdp_t <- rbind(cagdp_t,usgdp_t)
 rm(cagdp_t, usgdp_t)
-#PULL TOGETHER can_exports, can_imports, geoframe, and GDPs
+##POPULATION
+###US
+st_pop <- getCensus(
+  name = "dec/dhc",
+  vars = "P1_001N",
+  region = "state:*",
+  vintage = 2020
+)
+st_pop$state <- as.numeric(st_pop$state)
+colnames(st_pop) <- c("STATE", "pop")
+st_pop <- merge(st_pop, usfips, by="STATE")
+st_pop <- st_pop[,c(3, 2)]
+st_pop_from <- data.frame(st_pop$state, st_pop$pop)
+st_pop_to <- data.frame(st_pop$state, st_pop$pop)
+colnames(st_pop_from) <- c("from","from_pop")
+colnames(st_pop_to) <- c("to","to_pop")
+
+###CANADA
+
+prov_pop <- read.csv("prov_pop.csv")
+prov_pop <- prov_pop[prov_pop$CHARACTERISTIC_ID==1 
+                     & prov_pop$ALT_GEO_CODE !=  1, c(5, 12)]
+colnames(prov_pop) <- c("GEO", "pop")
+prov_pop <- merge(prov_pop, prov_abr, by="GEO")
+prov_pop$to <- prov_pop$from
+prov_pop_from <- data.frame(prov_pop$from, prov_pop$pop)
+prov_pop_to <- data.frame(prov_pop$to, prov_pop$pop)
+colnames(prov_pop_from) <- c("from","from_pop")
+colnames(prov_pop_to) <- c("to","to_pop")
+
+pop_from <- rbind(st_pop_from,prov_pop_from)
+pop_to <- rbind(st_pop_to,prov_pop_to)
+#PULL TOGETHER can_exports, can_imports, geoframe, populations, and GDPs
 us_ca <- rbind(can_imports, can_exports)
 us_ca <- merge(us_ca, geoframe, by = "fttag")
 us_ca <- merge(us_ca, gdp_f, by = "from")
 us_ca <- merge(us_ca, gdp_t, by = "to")
 us_ca <- us_ca[,c(2,1,7,8,5,6,4)]
+us_ca <- us_ca <- merge(us_ca, pop_from, by = "from")
+us_ca <- us_ca <- merge(us_ca, pop_to, by = "to")
+us_ca <- us_ca[us_ca$value != 0,]
 #SPLIT TO EACH PROVINCE
 us_ca_split <- split(us_ca, list(us_ca$to))
 #REGRESSION
 
-reg2 <- lm(asinh(value) ~ asinh(from_gdp) +
-             asinh(to_gdp) + asinh(km) +
-             domestic, data=us_ca)
+reg1 <- lm(log(value[domestic==0])
+           ~ log(from_gdp[domestic==0])
+           + log(to_gdp[domestic==0])
+           + log(km[domestic==0])
+           + domestic[domestic==0],
+           data = us_ca)
+
+summary(reg1)
+
+reg2 <- lm(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca)
+
 summary(reg2)
+
+reg3 <- lm(log(value[(from_gdp > 10^4) & (to_gdp > 10^4)])
+           ~ log(from_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)])
+           + log(to_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
+           + log(km[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
+           + domestic[(from_gdp > 10^4) & (to_gdp > 10^4)], 
+           data=us_ca)
+
+summary(reg3)
+
+reg4 <- lm(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca,
+           weights = from_gdp + to_gdp)
+
+summary (reg4)
+
+reg5 <- ivreg(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic 
+           | log(from_pop)
+           + log(to_pop)
+           + log(km)
+           + domestic, 
+           data=us_ca)
+
+summary(reg5)
+
+reg6 <- lm(log(value)
+           ~ log(from_pop)
+           + log(to_pop) 
+           + log(km) 
+           + domestic, 
+           data=us_ca)
+
+summary(reg6)
+
+
+plot ((us_ca$km), log(us_ca$value),
+      pch = 20,
+      cex = 0.5,
+      main = "Distance vs Total Goods Imports",
+      xlab = "Distance (km)",
+      ylab = "log(Goods Imports)",
+      col = alpha("red",0.5),
+      las = 1
+      )
+
+title <- "US Canada Trade Data - Summary Statistics"
+frmla <- (`Distance (km)` = km) + 
+  (`Imports` = value)  ~ 
+    (`N` = length) + 
+    Mean + 
+    (`St. Dev.` = sd) + 
+    (`Min` = min) + 
+    (`Max` = max)
+#Output a table
+datasummary(frmla, data = us_ca, title = title, fmt = fmt_significant(2))
+
+#REGRESSION DATA FRAME
+reg_frame <- data.frame(reg1$coefficients,
+                        reg2$coefficients,
+                        reg3$coefficients,
+                        reg4$coefficients,
+                        reg5$coefficients,
+                        reg6$coefficients)
 
 for(i in unique(prov_abr$from)){
   ggsave(paste0(i,".png"),gravitymap(i),
@@ -248,3 +361,4 @@ for(i in unique(prov_abr$from)){
          path="maps",
          create.dir = TRUE)
 }
+
