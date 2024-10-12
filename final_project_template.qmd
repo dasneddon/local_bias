@@ -83,7 +83,9 @@ For a "how to" on writing introductions, see [Keith Head's Introduction Formula]
 
 ## Data
 
-*Where does your data come from? Why is this data good for answering your question? Be sure to create, and discuss, a summary statistics table and some plots.*
+There is a wealth of data available from the Canadian government https://www.statcan.gc.ca/en/start. This includes interprovincial trade amongst the Canadian provinces and even international trade between Canadian provinces and US States in addition to provinicial GDP data. Much of the US data is available from the US Census bureau, including state GDP GDP and population. 
+
+Geographic data for Canada was more difficult to come by, as I diverged from the original work done by McCallum by using population centroids as opposed to distance to principal cities. The US population centers were available from the Census bureau, however the Canadian counterparts were not. I ended up using ChatGPT to calculate these centroids (noted in the code). Summary statistics for the data to be used in the model are listed below both with and without a logarithmic transformation.
 
 ```{r}
 #LIBRARIES
@@ -104,6 +106,7 @@ library(usmap)
 library(spData) 
 library("tools")
 library("modelsummary")
+library(AER)
 options("modelsummary_factory_default" = "kableExtra")
 options(scipen = 999)
 
@@ -151,8 +154,8 @@ gravitymap <- function (x){
   tabrs <- rbind(st_abbr, prov_abr2)
   colnames(tabrs)[1] <- "NAME"
   colnames(tf) <- colnames(us_ca)
-  tf$value <- asinh(tf$value)
-  tf <- tf[c(1, 7)]
+  tf$value <- log(tf$value)
+  tf <- tf[c(2, 7)]
   colnames(tf)[1] <- "State"
   tstpr <- merge(stpr, tabrs, by = "NAME")
   tstpr <- merge(tstpr, tf, by = "State")
@@ -177,25 +180,13 @@ usfips <- read.csv("https://www2.census.gov/geo/docs/reference/state.txt",
                    sep = "|")
 usfips <- usfips[c(1, 2)]
 colnames(usfips) <- c("STATE", "state")
-##POPULATION
-###US
-st_pop <- getCensus(
-  name = "dec/dhc",
-  vars = "P1_001N",
-  region = "state:*",
-  vintage = 2020
-)
-st_pop$state <- as.numeric(st_pop$state)
-colnames(st_pop) <- c("STATE", "pop")
-st_pop <- merge(st_pop, usfips, by="STATE")
-st_pop <- st_pop[,c(3, 2)]
-###CANADA
 
 ##GEOGRAPHIC DATA
 ###Centers of Population
 st_lat_long <- read_csv("st_pop_center.csv") #From Census.gov - 2020
 canprov <- read_csv("canprovcenter.csv") #Calculated with ChatGPT - 2021
 st_abbr <- read_csv("st_abbr.csv")
+
 
 
 #DISTANCE DATA
@@ -242,7 +233,7 @@ can_exports <- merge(can_exports, provto_abr, by="To_GEO")
 rm(provto_abr)
 can_exports["value"] <- can_exports$VALUE*1000
 can_exports <- can_exports[,-(1:4)]
-can_exports["fttag"] <- paste0(can_exports$to,can_exports$from)
+can_exports["fttag"] <- paste0(can_exports$from,can_exports$to)
 can_exports["intra"] <- -1
 for (i in 1:nrow(can_exports)){
   if(can_exports$from[i]==can_exports$to[i]){
@@ -255,7 +246,7 @@ can_exports$intra <- NULL
 tmp <- can_exports
 can_exports <- tmp[,c(2,1,3,4)]
 rm(tmp)
-can_exports["domestic"] <- 0
+can_exports["domestic"] <- 1
 
 
 ###IMPORT AGGREGATE AND CONDENSE CAN_IMPORTS DATAFRAME
@@ -279,8 +270,8 @@ for (i in 1:nrow(can_imports)){
 }
 can_imports <- can_imports[,c(2, 3, 4)]
 colnames(can_imports) <- c("to", "from", "value")
-can_imports["fttag"] <- paste0(can_imports$to,can_imports$from)
-can_imports["domestic"] <- 1
+can_imports["fttag"] <- paste0(can_imports$from,can_imports$to)
+can_imports["domestic"] <- 0
 
 ###CANADIAN GDP
 can_gdp <- read.csv(url_df$can_gdp)
@@ -307,69 +298,182 @@ us_gdp <- us_gdp[-1,]
 us_gdp <- us_gdp[-(52:59),]
 us_gdp <- us_gdp[,c(3, 6)]
 exch_usca <- 1.3269 #USD TO CAD 2019 https://www.bankofcanada.ca/rates/exchange/annual-average-exchange-rates/
-us1219 <- 1.07 #$1 USD IN 2012 IN 2019 DOLLARS 
 us_gdp <- merge(us_gdp, st_abbr, by="GeoName")
 usgdp_f <- data.frame(from=us_gdp$State,
-                      from_gdp=as.numeric(us_gdp$`DataValue_2019`)*us1219*exch_usca)
+                      from_gdp=as.numeric(us_gdp$`DataValue_2019`)*exch_usca)
 usgdp_t <- data.frame(to=us_gdp$State,
-                      to_gdp=as.numeric(us_gdp$`DataValue_2019`)*us1219*exch_usca)
-rm(us_gdp, exch_usca, us1219)
+                      to_gdp=as.numeric(us_gdp$`DataValue_2019`)*exch_usca)
+rm(us_gdp, exch_usca)
 #MERGE BOTH COUNTRIES GDPs
 gdp_f <- rbind(cagdp_f,usgdp_f)
 rm(cagdp_f, usgdp_f)
 gdp_t <- rbind(cagdp_t,usgdp_t)
 rm(cagdp_t, usgdp_t)
-#PULL TOGETHER can_exports, can_imports, geoframe, and GDPs
+##POPULATION
+###US
+st_pop <- getCensus(
+  name = "dec/dhc",
+  vars = "P1_001N",
+  region = "state:*",
+  vintage = 2020
+)
+st_pop$state <- as.numeric(st_pop$state)
+colnames(st_pop) <- c("STATE", "pop")
+st_pop <- merge(st_pop, usfips, by="STATE")
+st_pop <- st_pop[,c(3, 2)]
+st_pop_from <- data.frame(st_pop$state, st_pop$pop)
+st_pop_to <- data.frame(st_pop$state, st_pop$pop)
+colnames(st_pop_from) <- c("from","from_pop")
+colnames(st_pop_to) <- c("to","to_pop")
+
+###CANADA
+
+prov_pop <- read.csv("prov_pop.csv")
+prov_pop <- prov_pop[prov_pop$CHARACTERISTIC_ID==1 
+                     & prov_pop$ALT_GEO_CODE !=  1, c(5, 12)]
+colnames(prov_pop) <- c("GEO", "pop")
+prov_pop <- merge(prov_pop, prov_abr, by="GEO")
+prov_pop$to <- prov_pop$from
+prov_pop_from <- data.frame(prov_pop$from, prov_pop$pop)
+prov_pop_to <- data.frame(prov_pop$to, prov_pop$pop)
+colnames(prov_pop_from) <- c("from","from_pop")
+colnames(prov_pop_to) <- c("to","to_pop")
+
+pop_from <- rbind(st_pop_from,prov_pop_from)
+pop_to <- rbind(st_pop_to,prov_pop_to)
+#PULL TOGETHER can_exports, can_imports, geoframe, populations, and GDPs
 us_ca <- rbind(can_imports, can_exports)
 us_ca <- merge(us_ca, geoframe, by = "fttag")
 us_ca <- merge(us_ca, gdp_f, by = "from")
 us_ca <- merge(us_ca, gdp_t, by = "to")
 us_ca <- us_ca[,c(2,1,7,8,5,6,4)]
+us_ca <- us_ca <- merge(us_ca, pop_from, by = "from")
+us_ca <- us_ca <- merge(us_ca, pop_to, by = "to")
+us_ca <- us_ca[us_ca$value != 0,]
+us_ca <- us_ca[us_ca$to != "NU" & us_ca$to != "NT" & us_ca$to != "YT" &
+                 us_ca$from != "NU" & us_ca$from != "NT" & us_ca$from != "YT",]
 #SPLIT TO EACH PROVINCE
 us_ca_split <- split(us_ca, list(us_ca$to))
 #REGRESSION
 
-reg2 <- lm(asinh(value) ~ asinh(from_gdp) +
-             asinh(to_gdp) + asinh(km) +
-             domestic, data=us_ca)
-summary(reg2)
+coefnames <- c("Intercept","From GDP", "To GDP", "Distance (km)", "Intl. Dummy" )
 
-# for(i in unique(prov_abr$from)){
-#   ggsave(paste0(i,".png"),gravitymap(i),
-#          device = "png",
-#          path="maps",
-#          create.dir = TRUE)
-# }
+reg1 <- lm(log(value[domestic==1])
+           ~ log(from_gdp[domestic==1])
+           + log(to_gdp[domestic==1])
+           + log(km[domestic==1])
+           + domestic[domestic==1],
+           data = us_ca)
+names(reg1$coefficients) <- coefnames
 
-plot ((us_ca$km), asinh(us_ca$value),
+reg2 <- lm(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca)
+
+names(reg2$coefficients) <- coefnames
+
+reg3 <- lm(log(value[(from_gdp > 10^4) & (to_gdp > 10^4)])
+           ~ log(from_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)])
+           + log(to_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
+           + log(km[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
+           + domestic[(from_gdp > 10^4) & (to_gdp > 10^4)], 
+           data=us_ca)
+
+names(reg3$coefficients) <- coefnames
+
+reg4 <- lm(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca,
+           weights = from_gdp + to_gdp)
+
+names(reg4$coefficients) <- coefnames
+
+
+reg5 <- lm(log(value)
+           ~ log(from_pop)
+           + log(to_pop) 
+           + log(km) 
+           + domestic, 
+           data=us_ca)
+
+names(reg5$coefficients) <- coefnames
+
+regz <- list(reg1, reg2, reg3, reg4, reg5)
+
+plot ((us_ca$km), log(us_ca$value),
       pch = 20,
-      cex = 0.5,
+      cex = 1,
       main = "Distance vs Total Goods Imports",
       xlab = "Distance (km)",
-      ylab = "arsinh(Goods Imports)",
-      col = alpha("red",0.5),
+      ylab = "log(Goods Imports)",
+      col = alpha(us_ca$domestic+2,0.5),
       las = 1
       )
+legend("topright",
+       pch = 20,
+       bty = "n",
+       cex = 0.75,
+       horiz = FALSE,
+       legend = c("International", "Interprovincial"),
+       col = c(2, 3))
 
-title <- "US Canada Trade Data - Summary Statistics"
-frmla <- (`Distance (km)` = km) + 
-  (`Imports` = value)  ~ 
-    (`N` = length) + 
-    Mean + 
-    (`St. Dev.` = sd) + 
-    (`Min` = min) + 
-    (`Max` = max)
+
+title <- "US Canada Trade Data"
+frmla <- (`Imports` = value) +
+  (`Distance (km)` = km) + 
+  (`Export GDP` = from_gdp) +
+  (`Import GDP` = to_gdp) ~ 
+  (`N` = length) + 
+  Mean + 
+  (`St. Dev.` = sd) + 
+  (`Min` = min) + 
+  (`Max` = max)
+frmlalog <- (`Imports` = log(value)) +
+  (`Distance (km)` = log(km)) + 
+  (`Export GDP` = log(from_gdp)) +
+  (`Import GDP` = log(to_gdp)) ~ 
+  (`N` = length) + 
+  Mean + 
+  (`St. Dev.` = sd) + 
+  (`Min` = min) + 
+  (`Max` = max)
 #Output a table
-datasummary(frmla, data = us_ca, title = title, fmt = fmt_significant(2))
+datasummary(frmla, 
+            data = us_ca, 
+            title = paste(title, "- Summary Statistics"),
+            fmt = fmt_significant(2))
+datasummary(frmlalog, 
+            data = us_ca, 
+            title = paste(title, "- Summary Statistics - log"), 
+            fmt = fmt_significant(2))
+modelsummary(regz, 
+             data = us_ca, 
+             title = paste(title, "- Regression"),
+             fmt = fmt_significant(2))
+
 ```
+
 
 ## Empirical Model
 
-*Write down the model(s) you estimate. Explain your modeling choices (e.g. log(), etc.). List out your hypotheses and the rationales behind them.*
+$$log(\widehat{Im}_p)=\beta_0 +
+\beta_1log(Y_{Ex}) +
+\beta_2log(Y_{Im}) +
+\beta_3log(d) +
+\beta_4B +
+\varepsilon
+$$
+Where $log(\widehat{Im}_p)$ is the estimated imports, $Y_{Ex}$ is the GDP of the exporting province or state, $Y_{Im}$ is the GDP of the importing province, $d$ is the distance in kilometers from each province or states population center, and $B$ is a dummy variable for whether the trade crosses an international border.
 
-$$\text{Outcome}_{it} = \alpha + \delta D_{it} + \epsilon_{it}$$
+*Note that the 5th regression in the summary statistics uses population in lieu of GDP.*
 
-For inline equations, only use a single dollar sign like: $\overline{Y} = \widehat{m}\overline{X} + \widehat{b}$.
+I used $log-log$ regression as there are extreme variances in the data where states with exceptionally high GDP's such as Texas, while being one of the most distant states from the Canadian border still has a significant amount of exports. Using logarithms stabilizes this effect.
 
 ## Results
 

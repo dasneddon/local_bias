@@ -144,7 +144,7 @@ can_exports <- merge(can_exports, provto_abr, by="To_GEO")
 rm(provto_abr)
 can_exports["value"] <- can_exports$VALUE*1000
 can_exports <- can_exports[,-(1:4)]
-can_exports["fttag"] <- paste0(can_exports$to,can_exports$from)
+can_exports["fttag"] <- paste0(can_exports$from,can_exports$to)
 can_exports["intra"] <- -1
 for (i in 1:nrow(can_exports)){
   if(can_exports$from[i]==can_exports$to[i]){
@@ -157,7 +157,7 @@ can_exports$intra <- NULL
 tmp <- can_exports
 can_exports <- tmp[,c(2,1,3,4)]
 rm(tmp)
-can_exports["domestic"] <- 0
+can_exports["domestic"] <- 1
 
 
 ###IMPORT AGGREGATE AND CONDENSE CAN_IMPORTS DATAFRAME
@@ -181,8 +181,8 @@ for (i in 1:nrow(can_imports)){
 }
 can_imports <- can_imports[,c(2, 3, 4)]
 colnames(can_imports) <- c("to", "from", "value")
-can_imports["fttag"] <- paste0(can_imports$to,can_imports$from)
-can_imports["domestic"] <- 1
+can_imports["fttag"] <- paste0(can_imports$from,can_imports$to)
+can_imports["domestic"] <- 0
 
 ###CANADIAN GDP
 can_gdp <- read.csv(url_df$can_gdp)
@@ -209,13 +209,12 @@ us_gdp <- us_gdp[-1,]
 us_gdp <- us_gdp[-(52:59),]
 us_gdp <- us_gdp[,c(3, 6)]
 exch_usca <- 1.3269 #USD TO CAD 2019 https://www.bankofcanada.ca/rates/exchange/annual-average-exchange-rates/
-us1219 <- 1.07 #$1 USD IN 2012 IN 2019 DOLLARS 
 us_gdp <- merge(us_gdp, st_abbr, by="GeoName")
 usgdp_f <- data.frame(from=us_gdp$State,
-                      from_gdp=as.numeric(us_gdp$`DataValue_2019`)*us1219*exch_usca)
+                      from_gdp=as.numeric(us_gdp$`DataValue_2019`)*exch_usca)
 usgdp_t <- data.frame(to=us_gdp$State,
-                      to_gdp=as.numeric(us_gdp$`DataValue_2019`)*us1219*exch_usca)
-rm(us_gdp, exch_usca, us1219)
+                      to_gdp=as.numeric(us_gdp$`DataValue_2019`)*exch_usca)
+rm(us_gdp, exch_usca)
 #MERGE BOTH COUNTRIES GDPs
 gdp_f <- rbind(cagdp_f,usgdp_f)
 rm(cagdp_f, usgdp_f)
@@ -262,18 +261,21 @@ us_ca <- us_ca[,c(2,1,7,8,5,6,4)]
 us_ca <- us_ca <- merge(us_ca, pop_from, by = "from")
 us_ca <- us_ca <- merge(us_ca, pop_to, by = "to")
 us_ca <- us_ca[us_ca$value != 0,]
+us_ca <- us_ca[us_ca$to != "NU" & us_ca$to != "NT" & us_ca$to != "YT" &
+                 us_ca$from != "NU" & us_ca$from != "NT" & us_ca$from != "YT",]
 #SPLIT TO EACH PROVINCE
 us_ca_split <- split(us_ca, list(us_ca$to))
 #REGRESSION
 
-reg1 <- lm(log(value[domestic==0])
-           ~ log(from_gdp[domestic==0])
-           + log(to_gdp[domestic==0])
-           + log(km[domestic==0])
-           + domestic[domestic==0],
-           data = us_ca)
+coefnames <- c("Intercept","From GDP", "To GDP", "Distance (km)", "Intl. Dummy" )
 
-summary(reg1)
+reg1 <- lm(log(value[domestic==1])
+           ~ log(from_gdp[domestic==1])
+           + log(to_gdp[domestic==1])
+           + log(km[domestic==1])
+           + domestic[domestic==1],
+           data = us_ca)
+names(reg1$coefficients) <- coefnames
 
 reg2 <- lm(log(value)
            ~ log(from_gdp)
@@ -282,7 +284,7 @@ reg2 <- lm(log(value)
            + domestic, 
            data=us_ca)
 
-summary(reg2)
+names(reg2$coefficients) <- coefnames
 
 reg3 <- lm(log(value[(from_gdp > 10^4) & (to_gdp > 10^4)])
            ~ log(from_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)])
@@ -291,7 +293,7 @@ reg3 <- lm(log(value[(from_gdp > 10^4) & (to_gdp > 10^4)])
            + domestic[(from_gdp > 10^4) & (to_gdp > 10^4)], 
            data=us_ca)
 
-summary(reg3)
+names(reg3$coefficients) <- coefnames
 
 reg4 <- lm(log(value)
            ~ log(from_gdp)
@@ -301,64 +303,67 @@ reg4 <- lm(log(value)
            data=us_ca,
            weights = from_gdp + to_gdp)
 
-summary (reg4)
+names(reg4$coefficients) <- coefnames
 
-reg5 <- ivreg(log(value)
-           ~ log(from_gdp)
-           + log(to_gdp) 
-           + log(km) 
-           + domestic 
-           | log(from_pop)
-           + log(to_pop)
-           + log(km)
-           + domestic, 
-           data=us_ca)
 
-summary(reg5)
-
-reg6 <- lm(log(value)
+reg5 <- lm(log(value)
            ~ log(from_pop)
            + log(to_pop) 
            + log(km) 
            + domestic, 
            data=us_ca)
 
-summary(reg6)
+names(reg5$coefficients) <- coefnames
 
+regz <- list(reg1, reg2, reg3, reg4, reg5)
 
 plot ((us_ca$km), log(us_ca$value),
       pch = 20,
-      cex = 0.5,
+      cex = 1,
       main = "Distance vs Total Goods Imports",
       xlab = "Distance (km)",
       ylab = "log(Goods Imports)",
-      col = alpha("red",0.5),
+      col = alpha(us_ca$domestic+2,0.5),
       las = 1
       )
+legend("topright",
+       pch = 20,
+       bty = "n",
+       cex = 0.75,
+       horiz = FALSE,
+       legend = c("International", "Interprovincial"),
+       col = c(2, 3))
 
-title <- "US Canada Trade Data - Summary Statistics"
-frmla <- (`Distance (km)` = km) + 
-  (`Imports` = value)  ~ 
-    (`N` = length) + 
-    Mean + 
-    (`St. Dev.` = sd) + 
-    (`Min` = min) + 
-    (`Max` = max)
+
+title <- "US Canada Trade Data"
+frmla <- (`Imports` = value) +
+  (`Distance (km)` = km) + 
+  (`Export GDP` = from_gdp) +
+  (`Import GDP` = to_gdp) ~ 
+  (`N` = length) + 
+  Mean + 
+  (`St. Dev.` = sd) + 
+  (`Min` = min) + 
+  (`Max` = max)
+frmlalog <- (`Imports` = log(value)) +
+  (`Distance (km)` = log(km)) + 
+  (`Export GDP` = log(from_gdp)) +
+  (`Import GDP` = log(to_gdp)) ~ 
+  (`N` = length) + 
+  Mean + 
+  (`St. Dev.` = sd) + 
+  (`Min` = min) + 
+  (`Max` = max)
 #Output a table
-datasummary(frmla, data = us_ca, title = title, fmt = fmt_significant(2))
-
-#REGRESSION DATA FRAME
-reg_frame <- data.frame(reg1$coefficients,
-                        reg2$coefficients,
-                        reg3$coefficients,
-                        reg4$coefficients,
-                        reg5$coefficients,
-                        reg6$coefficients)
-
-for(i in unique(prov_abr$from)){
-  ggsave(paste0(i,".png"),gravitymap(i),
-         device = "png",
-         path="maps",
-         create.dir = TRUE)
-}
-
+datasummary(frmla, 
+            data = us_ca, 
+            title = paste(title, "- Summary Statistics"),
+            fmt = fmt_significant(2))
+datasummary(frmlalog, 
+            data = us_ca, 
+            title = paste(title, "- Summary Statistics - log"), 
+            fmt = fmt_significant(2))
+modelsummary(regz, 
+             data = us_ca, 
+             title = paste(title, "- Regression"),
+             fmt = fmt_significant(2))
