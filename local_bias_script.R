@@ -184,6 +184,8 @@ colnames(can_imports) <- c("to", "from", "value")
 can_imports["fttag"] <- paste0(can_imports$from,can_imports$to)
 can_imports["domestic"] <- 0
 
+
+
 ###CANADIAN GDP
 can_gdp <- read.csv(url_df$can_gdp)
 can_gdp <- can_gdp[,c("GEO","VALUE")]
@@ -367,3 +369,15 @@ modelsummary(regz,
              data = us_ca, 
              title = paste(title, "- Regression"),
              fmt = fmt_significant(2))
+
+
+#GENERATE MAPS
+
+map_abr <- unique(prov_abr)
+map_abr <- map_abr[1:10,]
+for(i in map_abr$from){
+  ggsave(paste0(i,".png"),gravitymap(i),
+         device = "png",
+         path="maps",
+         create.dir = TRUE)
+}

@@ -1,6 +1,6 @@
 ---
-title: "Final Project Placeholder"
-subtitle: "Maybe you have a subtitle"
+title: "National Borders (Still) Matter"
+subtitle: ""
 author: "David Sneddon"
 institute: "Old Dominion University"
 format: 
@@ -16,6 +16,7 @@ format:
 
 self-contained: true
 editor: source
+bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -69,11 +70,9 @@ knitr::opts_chunk$set(fold.plot=TRUE)
 Q <- 0
 ```
 
-*For some guidance on what your project should look like, check out this [sample paper by Dr. Tomas Dvorak](https://bpb-us-w2.wpmucdn.com/muse.union.edu/dist/d/377/files/2016/05/sample_paper.pdf).*
-
 ## Introduction
 
-*Motivate and introduce your topic. Convince the reader that this topic/question is important and that they should care. What data do you use? How do you model your outcome variable(s)? What do you find? What is learned from your analysis?*
+The gravity model of international trade. A relatively intuitive and straightforward understanding of international trade. At it's most basic level, trade between two entities will increase with their size and decrease with their distance from each other. It is so intuitive that it is sometimes called the naïve gravity model. [@RN66] I will attempt to recreate, with some modifications, the work done by John McCallum [@RN68]
 
 For a "how to" on writing introductions, see [Keith Head's Introduction Formula](https://blogs.ubc.ca/khead/research/research-advice/formula).
 

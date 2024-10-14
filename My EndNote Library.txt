@@ -1,0 +1,11 @@
+﻿@misc{RN66,
+   author = {Baier, Scott and Standaert, Samuel},
+   title = {Gravity Models and Empirical Trade},
+   publisher = {Oxford University Press},
+   month = {2020-03-31},
+   DOI = {10.1093/acrefore/9780190625979.013.327},
+   url = {https://oxfordre.com/economics/view/10.1093/acrefore/9780190625979.001.0001/acrefore-9780190625979-e-327},
+   year = {2020},
+   type = {Generic}
+}
+

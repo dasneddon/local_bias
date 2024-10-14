@@ -1,6 +1,6 @@
 ---
-title: "Final Project Checkpoint #3"
-#subtitle: "Maybe you have a subtitle"
+title: "National Borders (Still) Matter"
+subtitle: ""
 author: "David Sneddon"
 institute: "Old Dominion University"
 format: 
@@ -16,6 +16,7 @@ format:
 
 self-contained: true
 editor: source
+bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -69,12 +70,47 @@ knitr::opts_chunk$set(fold.plot=TRUE)
 Q <- 0
 ```
 
+## Introduction
+
+The gravity model of international trade. A relatively intuitive and straightforward understanding of international trade. At it's most basic level, trade between two entities will increase with their size and decrease with their distance from each other. It is so intuitive that it is sometimes called the naïve gravity model. [@RN66]\
+
+$$
+X_{ij}=\beta_0Y^{\beta_{1}}_{i}Y^{\beta_{2}}_{j}dist^{\beta_{3}}_{ij}\varepsilon_{ij}
+$$
+
+Or:
+
+$$
+ln(X_{ij}) = \beta_0 + \beta_1ln(Y_i)+\beta_2ln(Y_j)+\beta_3ln(dist_{ij})+ln(\varepsilon_{ij})
+$$
+
+> "Where $X_{ij}$ is is bilateral trade between exporting country $i$ and importing country $j$, $Y_i(Y_j)$ is the gross domestic product in country $i(j)$ and $dist_{ij}$ is the bilateral distance between country $i$ and $j$. $\varepsilon_{ij}$ is typically assumed to be a log-normally distributed error term."
+> [@RN66]\
+
+
+
+
+I will attempt to recreate, with some modifications, the work done by John McCallum "National Borders Matter: Canada-U.S. Regional Trade Patterns" [@RN68]. McCallum's article published one year after the North American Free Trade Agreement (NAFTA) came into effect. However his analysis uses data from 1988, before NAFTA came into effect.\
+
+The results of McCallum's analysis indicated that the international border significantly diluted the effects of the gravity model, however given that NAFTA had not yet come into effect, this is intuitive. I hope to assess the effect of NAFTA by replicating McCallum's analysis for 2019 data, the last full year that NAFTA was in effect. This year also is the last full year before significant impacts of the COVID-19 pandemic were felt in North America.\
+
+As NAFTA was designed to remove trade barriers in North America, the intuitive expectation is that the effect of the international border between Canada and the United States will be reduced, and the its effect on the naïve gravity model will be reduced.
+
+## Literature Review
+
+This paper aims to be an only slightly modified recreation of McCallum's work in principle. His paper forms the basis of the project. While intuition may suggest that the removal of trade barriers combined with the historically porous US-Canada border would see McCallum concluded that the effects would be modest and/or gradual. [@RN68] 
+
+However, it remains clear that international trade has increased significantly, owing to decreased transport costs and a general trend of lower tariffs. [@lavallee] Nevertheless, there are other trade barriers aside from tariffs such as differences in preferences, institutions, currency differences, etc. [@anderson]
+
+The literature suggests that while the gravity model overall tends to hold, ceteris paribus, free trade is but one of many factors influencing trade flows across international borders.
 
 ## Data
 
-There is a wealth of data available from the Canadian government https://www.statcan.gc.ca/en/start. This includes interprovincial trade amongst the Canadian provinces and even international trade between Canadian provinces and US States in addition to provinicial GDP data. Much of the US data is available from the US Census bureau, including state GDP GDP and population. 
+There is a wealth of data available from the Canadian government https://www.statcan.gc.ca/en/start. This includes interprovincial trade amongst the Canadian provinces and even international trade between Canadian provinces and US States in addition to provinicial GDP data. Much of the US data is available from the US Census bureau, including state GDP and population.\
 
-Geographic data for Canada was more difficult to come by, as I diverged from the original work done by McCallum by using population centroids as opposed to distance to principal cities. The US population centers were available from the Census bureau, however the Canadian counterparts were not. I ended up using ChatGPT to calculate these centroids (noted in the code). Summary statistics for the data to be used in the model are listed below both with and without a logarithmic transformation.
+Geographic data for Canada was more difficult to come by, as I diverged from the original work done by McCallum by using population centroids as opposed to distance to principal cities. The US population centers were available from the Census bureau, however the Canadian counterparts were not. I ended up using ChatGPT to calculate these centroids (noted in the code). Summary statistics for the data to be used in the model are listed below both with and without a logarithmic transformation.\
+
+
 
 ```{r}
 #LIBRARIES
@@ -274,6 +310,7 @@ cagdp_t <- data.frame(to=can_gdp$from,
 
 ##US DATA
 bkey <- "EB73777D-FF2C-43F1-A94A-E1BFFBA2744D"
+
 userSpecList <- list('UserID' = bkey,
                      'Method' = 'GetData',
                      'datasetname' = 'Regional',
@@ -392,7 +429,15 @@ reg5 <- lm(log(value)
 
 names(reg5$coefficients) <- coefnames
 
-regz <- list(reg1, reg2, reg3, reg4, reg5)
+reg6 <- lm(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km), 
+           data=us_ca)
+
+names(reg6$coefficients) <- coefnames[1:4]
+
+regz <- list(reg1, reg2, reg3, reg4, reg5, reg6)
 
 plot ((us_ca$km), log(us_ca$value),
       pch = 20,
@@ -431,7 +476,7 @@ frmlalog <- (`Imports` = log(value)) +
   (`St. Dev.` = sd) + 
   (`Min` = min) + 
   (`Max` = max)
-#Output a table
+#Output tables
 datasummary(frmla, 
             data = us_ca, 
             title = paste(title, "- Summary Statistics"),
@@ -447,40 +492,50 @@ modelsummary(regz,
 
 ```
 
-
 ## Empirical Model
 
-$$log(\widehat{Im}_p)=\beta_0 +
-\beta_1log(Y_{Ex}) +
-\beta_2log(Y_{Im}) +
-\beta_3log(d) +
-\beta_4B +
-\varepsilon
-$$
-Where $log(\widehat{Im}_p)$ is the estimated imports, $Y_{Ex}$ is the GDP of the exporting province or state, $Y_{Im}$ is the GDP of the importing province, $d$ is the distance in kilometers from each province or states population center, and $B$ is a dummy variable for whether the trade crosses an international border.
+$$ln(\hat{X}_{ij})=\beta_0 +
+\beta_1ln(Y_{i}) +
+\beta_2ln(Y_{j}) +
+\beta_3ln(dist_{ij}) +
+\beta_4\delta_{ij} +
+ln(\varepsilon_{ij})
+$$ Where $log(\hat{X}_{ij})$ is the estimated imports, $Y_{i}$ is the GDP of the exporting province or state, $Y_{j}$ is the GDP of the importing province, $dist_{ij}$ is the distance in kilometers from each province or states population center, and $\delta_{ij}$ is a dummy variable for whether the trade crosses an international border.
 
 *Note that the 5th regression in the summary statistics uses population in lieu of GDP.*
 
 I used $log-log$ regression as there are extreme variances in the data where states with exceptionally high GDP's such as Texas, while being one of the most distant states from the Canadian border still has a significant amount of exports. Using logarithms stabilizes this effect.
 
-There are five variations of the regresson:\
+There are six variations of the regresson:\
 1. Canada Only \
 2. Canada and USA \
 3. Canada and USA with GDP greater that $10 billion \
 4. Canada and USA weighted by GDP \
 5. Canada and USA with population in lieu of GDP \
+6. Canada and USA using the naïve gravity model\
+
+## Results
+
+*Discuss the results of your analysis. Interpret the coefficients.*
+
+```{r}
+2 + 2
+```
+
+## Conclusion
+
+*Remind the reader of your topic, why it is important, and what you find. Be sure to include a discussion of the implications of your findings.*
+
+Marc Bellemare has a helpful [Conclusion Formula](https://marcfbellemare.com/wordpress/12060) in response to Dr. Head's.
 
 ## Maps
 
 ![Alberta](maps/AB.png)
 ![British Columbia](maps/BC.png)
 ![Manitoba](maps/MB.png)
-
 ![New Brunswick](maps/NB.png)
 ![Newfoundland](maps/NL.png)
 ![Nova Scotia](maps/NS.png)
-
-
 ![Ontario](maps/ON.png)
 ![Prince Edward Island](maps/PE.png)
 ![Quebec](maps/QC.png)
