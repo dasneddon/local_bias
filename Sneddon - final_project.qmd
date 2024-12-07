@@ -70,7 +70,7 @@ knitr::opts_chunk$set(fold.plot=TRUE)
 Q <- 0
 ```
 
-## Introduction
+# Introduction
 
 The gravity model of international trade. A relatively intuitive and straightforward understanding of international trade. At it's most basic level, trade between two entities will increase with the size of their economies and decrease with their distance from each other. It is so intuitive that it is sometimes called the naïve gravity model. [@RN66]\
 
@@ -96,7 +96,9 @@ The results of McCallum's analysis indicated that the international border signi
 
 As NAFTA was designed to remove trade barriers in North America, the intuitive expectation is that the effect of the international border between Canada and the United States will be reduced, and the its effect on the naïve gravity model will be reduced.
 
-## Literature Review
+In @RN68 the implied null hypothesis is that there is no statistically significant effect of the international border. This paper will test McCallum's alternative hypothesis that the effect of NAFTA would be muted. As @RN68 did not indicate an alpha, I will test with an $\alpha=0.05$.
+
+# Literature Review
 
 This paper aims to be an only slightly modified recreation of McCallum's work in principle. His paper forms the basis of the project. While intuition may suggest that the removal of trade barriers combined with the historically porous US-Canada border would quickly see a muted effect of the international border, McCallum believed that the effects would be modest and/or gradual. [@RN68] 
 
@@ -104,13 +106,13 @@ It is clear that international trade has increased significantly, owing to decre
 
 The literature suggests that while the gravity model overall tends to hold, ceteris paribus, "free trade" is but one of many factors influencing trade flows across international borders.
 
-## Data
+# Data
 
 There is a wealth of data available from the [Canadian government](https://www.statcan.gc.ca/en/start). This includes interprovincial trade amongst the Canadian provinces and even international trade between Canadian provinces and US States in addition to provinicial GDP data. Much of the US data is available from the US Census bureau, including state GDP and population.\
 
 Geographic data for Canada was more difficult to come by, as I diverged from the original work done by McCallum by using population centroids as opposed to distance to principal cities. The US population centers were available from the Census bureau, however the Canadian counterparts were not. I ended up using ChatGPT to calculate these centroids (noted in the code). Summary statistics for the data to be used in the model are listed below both with and without a logarithmic transformation.\
 
-## Code Walkthrough
+# Code Walkthrough
 
 This project is being compiled using [Quarto](https://quarto.org) in [RStudio](https://posit.co/downloads/). Not only does Quarto allow for professional and polished looking content; Quarto, RStudio, and [R](https://www.r-project.org/) are "free". There is a learning curve, so opportunity costs will apply. Another advantage of Quarto is the ability to embed and share code chunks in the final product. To that end: I will walk through the processes, step by step.
 
@@ -126,7 +128,7 @@ Alternatively you can clone the repository via CLI:
 git clone https://github.com/dasneddon/local_bias.git
 ```
 
-### Libraries and Options
+## Libraries and Options
 
 These are the various libraries used throughout the project.
 
@@ -150,72 +152,16 @@ library(tools)
 library(modelsummary)
 library(AER)
 library(MASS)
+library(fixest)
 options("modelsummary_factory_default" = "kableExtra")
 options(scipen = 999)
 ```
 
 
-### Functions
-
-I have created a function called *gravitymap()* for generating the map visualizations in the appendix.
-```{r}
-gravitymap <- function (x){
-  theme_set(theme_bw())
-  sf_use_s2(FALSE)
-  
-  worldz <- ne_countries(scale = "large", returnclass = "sf")
-  class(worldz)
-  (sites <- data.frame(longitude = c(-172.54, -47.74), latitude = c(23.81,
-                                                                    90)))
-  
-  
-  (sites <- st_as_sf(geodata, coords = c("lon", "lat"),
-                     crs=4369, agr = "constant"))
-  
-  sites <- st_transform(sites, st_crs("ESRI:102010"))
-  states <- st_transform(us_states, st_crs("ESRI:102010"))
-  provs <- st_sf(PROV[,c(5, 10, 11, 12)])
-  ak <- st_transform(alaska, st_crs("ESRI:102010"))
-  hi <- st_transform(hawaii, st_crs("ESRI:102010"))
-  akhi <- rbind(ak,hi)
-  akhi <- cbind(akhi, st_coordinates(st_centroid(akhi)))
-  akhi <- st_sf(akhi[c(2,7,8,9)])
-  provs <- st_transform(provs, st_crs("ESRI:102010"))
-  states <- cbind(states, st_coordinates(st_centroid(states)))
-  states <- states[c(2, 7, 8, 9)]
-  colnames(provs) <- colnames(akhi) <- colnames(states)
-  stpr <- st_sf(rbind(as.data.frame(states),
-                      as.data.frame(provs),
-                      as.data.frame(akhi)))
-  tf <- data.frame(us_ca_split[x])
-  prov_abr2 <- prov_abr
-  colnames(prov_abr2) <- colnames(st_abbr)
-  tabrs <- rbind(st_abbr, prov_abr2)
-  colnames(tabrs)[1] <- "NAME"
-  colnames(tf) <- colnames(us_ca)
-  tf$value <- log(tf$value)
-  tf <- tf[c(2, 7)]
-  colnames(tf)[1] <- "State"
-  tstpr <- merge(stpr, tabrs, by = "NAME")
-  tstpr <- merge(tstpr, tf, by = "State")
-  ggplot(data = worldz) +
-    geom_sf() +
-    ggtitle(paste("Import Gravity Map for", prov_abr[prov_abr$from==x,])) +
-    geom_sf(data = tstpr, 
-            aes(fill =value)) +
-    scale_fill_gradient(low="red", high= "green") +
-    coord_sf(xlim = c(-6500000, 3800000), 
-             ylim = c(4700000, -1700000), 
-             expand = FALSE, 
-             crs = st_crs("ESRI:102010"))
-
-}
-```
-
-### Data Imports
+## Data Imports and Data Cleaning
 
 
-
+US Import and Export Data
 ```{r}
 #US DATA
 url_df <- read.csv("url_df.csv")
@@ -225,28 +171,22 @@ usfips <- usfips[c(1, 2)]
 colnames(usfips) <- c("STATE", "state")
 
 ```
-
+Canadian Import and Export Data
 ```{r}
 ##CANADIAN DATA
 can_exports <- read.csv(url_df$candata)
 can_exports <- can_exports[,c(2, 4, 5, 12)]
 can_imports <- read.csv("ODPFN022_201912N.csv")
 ```
-
+Geographic Data
 ```{r}
 ##GEOGRAPHIC DATA
 ###Centers of Population
 st_lat_long <- read.csv("st_pop_center.csv") #From Census.gov - 2020
 canprov <- read.csv("canprovcenter.csv") #Calculated with ChatGPT - 2021
 st_abbr <- read.csv("st_abbr.csv")
-
-
 ```
-
-###Dataframe Construction
-
-
-
+Distance Data
 ```{r}
 #DISTANCE DATA
 geodata <- as.data.frame(rbind(as.matrix(st_lat_long),
@@ -272,10 +212,8 @@ geoframe["fttag"] <- paste0(geoframe$from,geoframe$to)
 geoframe <- geoframe[,c(3, 4)]
 
 ```
-
+US State and Provincial Abbreviations
 ```{r}
-
-
 #DATAFRAME FOR US STATE AND PROVINCIAL ABBREVIATIONS FOR UNIFORMITY
 #NEEDED FOR MERGING
 prov_abr <- data.frame(GEO = unique(can_exports$GEO))
@@ -285,6 +223,9 @@ provto_abr <- prov_abr
 provto_abr$GEO <- paste("To", prov_abr$GEO)
 colnames(provto_abr) <- c("To_GEO","to")
 colnames(can_exports)[2] <- "To_GEO"
+```
+Formatting of Canadian exports data frame for merging.
+```{r}
 #FORMAT can_exports  FOR MERGING
 can_exports <- merge(can_exports, prov_abr, by="GEO")
 can_exports <- merge(can_exports, provto_abr, by="To_GEO")
@@ -305,9 +246,10 @@ tmp <- can_exports
 can_exports <- tmp[,c(2,1,3,4)]
 rm(tmp)
 can_exports["domestic"] <- 1
-
-
-###IMPORT AGGREGATE AND CONDENSE CAN_IMPORTS DATAFRAME
+```
+Aggregate and condense can_imports data frame.
+```{r}
+###AGGREGATE AND CONDENSE CAN_IMPORTS DATAFRAME
 
 can_imports <- can_imports[can_imports$Country.Pays=="US",]
 colnames(can_imports) <- c("YearMonth", 
@@ -330,7 +272,9 @@ can_imports <- can_imports[,c(2, 3, 4)]
 colnames(can_imports) <- c("to", "from", "value")
 can_imports["fttag"] <- paste0(can_imports$from,can_imports$to)
 can_imports["domestic"] <- 0
-
+```
+Import Canadian and US GDP Data.
+```{r}
 ###CANADIAN GDP
 can_gdp <- read.csv(url_df$can_gdp)
 can_gdp <- can_gdp[,c("GEO","VALUE")]
@@ -339,9 +283,8 @@ cagdp_f <- data.frame(from=can_gdp$from,
                       from_gdp=can_gdp$VALUE)
 cagdp_t <- data.frame(to=can_gdp$from,
                       to_gdp=can_gdp$VALUE)
-##MERGE CANADIAN IMPORTS AND EXPORTS
 
-##US DATA
+##US GDP
 bkey <- "EB73777D-FF2C-43F1-A94A-E1BFFBA2744D"
 
 userSpecList <- list('UserID' = bkey,
@@ -367,6 +310,9 @@ gdp_f <- rbind(cagdp_f,usgdp_f)
 rm(cagdp_f, usgdp_f)
 gdp_t <- rbind(cagdp_t,usgdp_t)
 rm(cagdp_t, usgdp_t)
+```
+Import Population Data
+```{r}
 ##POPULATION
 ###US
 st_pop <- getCensus(
@@ -399,6 +345,9 @@ colnames(prov_pop_to) <- c("to","to_pop")
 
 pop_from <- rbind(st_pop_from,prov_pop_from)
 pop_to <- rbind(st_pop_to,prov_pop_to)
+```
+Pull everything together to form the us_ca data frame used in analysis
+```{r}
 #PULL TOGETHER can_exports, can_imports, geoframe, populations, and GDPs
 us_ca <- rbind(can_imports, can_exports)
 us_ca <- merge(us_ca, geoframe, by = "fttag")
@@ -412,81 +361,111 @@ us_ca <- us_ca[us_ca$to != "NU" & us_ca$to != "NT" & us_ca$to != "YT" &
                  us_ca$from != "NU" & us_ca$from != "NT" & us_ca$from != "YT",]
 #SPLIT TO EACH PROVINCE
 us_ca_split <- split(us_ca, list(us_ca$to))
+```
+
+
+
+# Empirical Model
+
+$$ln(\hat{X}_{ij})=\beta_0 +
+\beta_1ln(Y_{i}) +
+\beta_2ln(Y_{j}) +
+\beta_3ln(dist_{ij}) +
+\beta_4\delta_{ij} +
+ln(\varepsilon_{ij})
+$$ Where $log(\hat{X}_{ij})$ is the estimated imports, $Y_{i}$ is the GDP of the exporting province or state, $Y_{j}$ is the GDP of the importing province, $dist_{ij}$ is the distance in kilometers from each province or states population center, and $\delta_{ij}$ is a dummy variable for whether the trade crosses an international border.
+
+*Note that the 5th regression in the summary statistics uses population in lieu of GDP.*
+
+I used $log-log$ regression as there are extreme variances in the data where states with exceptionally high GDP's such as Texas, while being one of the most distant states from the Canadian border still has a significant amount of exports. Using logarithms stabilizes this effect.
+
+
+
+# Results
+
+## Regression
+
+This code chunk runs the regression using the fixest::feols() function.
+```{r}
+
 #REGRESSION
 
-coefnames <- c("Intercept","From GDP", "To GDP", "Distance (km)", "Intl. Dummy" )
+coefnames <- c("Intercept","From GDP", "To GDP", "Distance (km)", "Domestic Dummy" )
 
-reg1 <- lm(log(value[domestic==1])
-           ~ log(from_gdp[domestic==1])
-           + log(to_gdp[domestic==1])
-           + log(km[domestic==1])
-           + domestic[domestic==1],
-           data = us_ca)
-names(reg1$coefficients) <- coefnames
-
-reg2 <- lm(log(value)
+reg1 <- feols(log(value)
            ~ log(from_gdp)
-           + log(to_gdp) 
-           + log(km) 
-           + domestic, 
-           data=us_ca)
+           + log(to_gdp)
+           + log(km),
+           data = us_ca,
+           vcov = "hetero",
+           subset = us_ca$domestic==1)
 
-names(reg2$coefficients) <- coefnames
+names(reg1$coefficients) <- coefnames[1:4]
 
-reg3 <- lm(log(value[(from_gdp > 10^4) & (to_gdp > 10^4)])
-           ~ log(from_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)])
-           + log(to_gdp[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
-           + log(km[(from_gdp > 10^4) & (to_gdp > 10^4)]) 
-           + domestic[(from_gdp > 10^4) & (to_gdp > 10^4)], 
-           data=us_ca)
-
-names(reg3$coefficients) <- coefnames
-
-reg4 <- lm(log(value)
+reg2 <- feols(log(value)
            ~ log(from_gdp)
            + log(to_gdp) 
            + log(km) 
            + domestic, 
            data=us_ca,
-           weights = from_gdp + to_gdp)
+           vcov = "hetero")
+
+names(reg2$coefficients) <- coefnames
+
+reg3 <- feols(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca,
+           vcov = "hetero", 
+           subset=us_ca$from_gdp > 10^4 & us_ca$to_gdp > 10^4)
+
+names(reg3$coefficients) <- coefnames
+
+reg4 <- feols(log(value)
+           ~ log(from_gdp)
+           + log(to_gdp) 
+           + log(km) 
+           + domestic, 
+           data=us_ca,
+           vcov = "hetero",
+           weights = us_ca$from_gdp + us_ca$to_gdp)
 
 names(reg4$coefficients) <- coefnames
 
-
-reg5 <- lm(log(value)
+reg5 <- feols(log(value)
            ~ log(from_pop)
            + log(to_pop) 
            + log(km) 
            + domestic, 
-           data=us_ca)
+           data=us_ca,
+           vcov = "hetero")
 
 names(reg5$coefficients) <- coefnames
 
-reg6 <- lm(log(value)
+reg6 <- feols(log(value)
            ~ log(from_gdp)
            + log(to_gdp) 
            + log(km), 
-           data=us_ca)
+           data=us_ca,
+           vcov = "hetero")
 
 names(reg6$coefficients) <- coefnames[1:4]
 
-reg7 <- rlm(log(value)
-           ~ log(from_gdp)
-           + log(to_gdp) 
-           + log(km) 
-           + domestic, 
-           data=us_ca)
-
-names(reg7$coefficients) <- coefnames
 
 regz <- list(reg1, 
              reg2, 
              reg3, 
              reg4, 
              reg5, 
-             reg6, 
-             reg7)
+             reg6)
 
+```
+
+A simple scatter plot of distance vs the natural logarithm of imports.
+```{r}
+#PLOT
 plot ((us_ca$km), log(us_ca$value),
       pch = 20,
       cex = 1,
@@ -524,6 +503,12 @@ frmlalog <- (`Imports` = log(value)) +
   (`St. Dev.` = sd) + 
   (`Min` = min) + 
   (`Max` = max)
+
+
+```
+
+## Data tables
+```{r}
 #Output tables
 datasummary(frmla, 
             data = us_ca, 
@@ -536,23 +521,13 @@ datasummary(frmlalog,
 modelsummary(regz, 
              data = us_ca, 
              title = paste(title, "- Regression"),
-             fmt = fmt_significant(2))
-
+             fmt = fmt_significant(3),
+             statistic = c("SE = {std.error}", 
+                           "t = {statistic}",
+                           "p = {p.value}"),
+             gof_map = c("nobs", "r.squared", "vcov.type"))
+             
 ```
-
-## Empirical Model
-
-$$ln(\hat{X}_{ij})=\beta_0 +
-\beta_1ln(Y_{i}) +
-\beta_2ln(Y_{j}) +
-\beta_3ln(dist_{ij}) +
-\beta_4\delta_{ij} +
-ln(\varepsilon_{ij})
-$$ Where $log(\hat{X}_{ij})$ is the estimated imports, $Y_{i}$ is the GDP of the exporting province or state, $Y_{j}$ is the GDP of the importing province, $dist_{ij}$ is the distance in kilometers from each province or states population center, and $\delta_{ij}$ is a dummy variable for whether the trade crosses an international border.
-
-*Note that the 5th regression in the summary statistics uses population in lieu of GDP.*
-
-I used $log-log$ regression as there are extreme variances in the data where states with exceptionally high GDP's such as Texas, while being one of the most distant states from the Canadian border still has a significant amount of exports. Using logarithms stabilizes this effect.
 
 There are six variations of the regresson:\
 1. Canada Only \
@@ -561,60 +536,48 @@ There are six variations of the regresson:\
 4. Canada and USA weighted by GDP \
 5. Canada and USA with population in lieu of GDP \
 6. Canada and USA using the naïve gravity model\
-7. Canada and USA robust standard errors \
 
-## Results
+## Discussion and Interpretation
 
-*Discuss the results of your analysis. Interpret the coefficients.*
+For brevity, I will interpret the second variation of the regression: Canada and USA with no other modifications.
 
-```{r}
-predictions2 <- predict(reg2, newdata=us_ca)
-predictions4 <- predict(reg4, newdata=us_ca)
-predictions5 <- predict(reg5, newdata=us_ca)   
-predictions6 <- predict(reg6, newdata=us_ca)
-predictions7 <- predict(reg7, newdata=us_ca)
-predictions3 <- predict(reg3, newdata=us_ca[(us_ca$from_gdp > 10^4) & (us_ca$to_gdp > 10^4),])
+$\beta_0$ : Intercept offers nothing meaningful to interpret. \
 
-residuals2 <- log(us_ca$value) - predictions2
-residuals3 <- log(us_ca$value) - predictions3
-residuals4 <- log(us_ca$value) - predictions4
-residuals5 <- log(us_ca$value) - predictions5
-residuals6 <- log(us_ca$value) - predictions6
-residuals7 <- log(us_ca$value) - predictions7
+$\beta_1$ : GDP of exporting province or state: 
 
-mae2 <- mean(abs(residuals2))
-mae3 <- mean(abs(residuals3))
-mae4 <- mean(abs(residuals4))
-mae5 <- mean(abs(residuals5))
-mae6 <- mean(abs(residuals6))
-mae7 <- mean(abs(residuals7))
+A $1\%$ increase in the exporter's GDP will result in a $1.196\%$ increase in imports for the importing province from the given exporter.\
 
-mae <- data.frame(mae2, mae3, mae4, mae5, mae6, mae7)
+$\beta_2$ : GDP of importing province or state:\
 
+A $1\%$ increase in the importer's GDP will result in a $1.694\%$ increase in imports for that province from a given exporter. \
 
+$\beta_3$ : Distance in kilometers:\
 
-                       
+A $1\%$ increase in the distance between the provinces/states from each other will result in a $1.68\%$ decrease in the imports for the receiving province from a given exporter. \
 
+$\beta_4$ : Dummy binary variable for whether an international border exists between the importer and exporter. Interprovincial trade has a value of 1, while international trade has a value of 0. \
 
+$\{e^{\beta_4}-1=\%\Delta X_{ij} : \beta_4 = 4.34\} \approx 7570\%$
 
-                         
-```
+This suggests that a province's imports will be $7570\%$ higher from another Canadian province than from a US State, ceteris paribus. \
 
-## Conclusion
+We can *strongly* reject the null hypothesis for all covariates, including the effect of the international border, with $p < 0.001$. In @RN68 $\beta_4=3.09$ leading to domestic trade having an advantage by a factor of 22 for regression \#2. Here $\beta_4=4.34$ leading to an advantage by a factor of *75*.
 
-*Remind the reader of your topic, why it is important, and what you find. Be sure to include a discussion of the implications of your findings.*
+Standard errors in all cases are robust to heteroscedasticty.
+
+# Conclusion
+
+It appears that NAFTA has not simply had a muted effect on trade between the U.S. and Canada. Rather, interprovincial trade within Canada has an even greater advantage over trade with the U.S. than it did back in 1988. Simply put, the effect of the international border is even stronger than it was before NAFTA was ratified. 
+
+Notably, total Canadian imports from the United States was $\$74.5 B$ in 1989 with a GDP of $\$567.21 B$, a ratio of $13.2\%$. In 2019, however, the imports were $\$230 B$ with a GDP of $\$1.73 T$ a ratio of $13.3\%$ [@tradingeconomics_canada_imports].
 
 Marc Bellemare has a helpful [Conclusion Formula](https://marcfbellemare.com/wordpress/12060) in response to Dr. Head's.
 
-## Maps
 
-![Alberta](maps/AB.png)
-![British Columbia](maps/BC.png)
-![Manitoba](maps/MB.png)
-![New Brunswick](maps/NB.png)
-![Newfoundland](maps/NL.png)
-![Nova Scotia](maps/NS.png)
-![Ontario](maps/ON.png)
-![Prince Edward Island](maps/PE.png)
-![Quebec](maps/QC.png)
-![Saskatchewan](maps/SK.png)
+
+
+
+
+
+
+
