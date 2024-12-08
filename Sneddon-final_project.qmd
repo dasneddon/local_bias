@@ -571,6 +571,12 @@ Notably, total Canadian imports from the United States was $\$74.5 B$ in 1989 wi
 
 These results indicate that while U.S.-Canadian trade is very strong, if the international border had no effect and the naïve gravity model held, trade would be much stronger. The results also highlight an omitted variable bias. The naïve gravity model's coefficients $\{\beta_1,\beta_2, \beta_3\}$ also hold up with $p<0.001$ albeit with greater variance with the lowest $R^2$ all six tests. 
 
+# GitHub Repository and e-Portfolio
+
+The files associated with this project are available on [GitHub](https://github.com/dasneddon/local_bias) [@dasneddon2024localbias].
+
+The requirements for this assignment also include an e-Portfolio which can be found [here](https://sites.google.com/odu.edu/david-sneddon/).
+
 
 
 
