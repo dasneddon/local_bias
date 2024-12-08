@@ -100,9 +100,9 @@ In @RN68 the implied null hypothesis is that there is no statistically significa
 
 # Literature Review
 
-This paper aims to be an only slightly modified recreation of McCallum's work in principle. His paper forms the basis of the project. While intuition may suggest that the removal of trade barriers combined with the historically porous US-Canada border would quickly see a muted effect of the international border, McCallum believed that the effects would be modest and/or gradual. [@RN68] 
+This paper aims to be an only slightly modified recreation of McCallum's work in principle. His paper forms the basis of the project. While intuition may suggest that the removal of trade barriers combined with the historically porous US-Canada border would quickly see a muted effect of the international border, McCallum believed that the effects would be modest and/or gradual [@RN68]. 
 
-It is clear that international trade has increased significantly, owing to decreased transport costs and a general trend of lower tariffs. [@lavallee] Nevertheless, there are other trade barriers aside from tariffs such as differences in preferences, institutions, currency differences, etc. [@anderson]
+It is clear that international trade has increased significantly, owing to decreased transport costs and a general trend of lower tariffs. [@lavallee] Nevertheless, there are other trade barriers aside from tariffs such as differences in preferences, institutions, currency differences, etc [@anderson].
 
 The literature suggests that while the gravity model overall tends to hold, ceteris paribus, "free trade" is but one of many factors influencing trade flows across international borders.
 
