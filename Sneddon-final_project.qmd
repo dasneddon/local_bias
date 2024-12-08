@@ -114,19 +114,7 @@ Geographic data for Canada was more difficult to come by, as I diverged from the
 
 # Code Walkthrough
 
-This project is being compiled using [Quarto](https://quarto.org) in [RStudio](https://posit.co/downloads/). Not only does Quarto allow for professional and polished looking content; Quarto, RStudio, and [R](https://www.r-project.org/) are "free". There is a learning curve, so opportunity costs will apply. Another advantage of Quarto is the ability to embed and share code chunks in the final product. To that end: I will walk through the processes, step by step.
-
-The entire project including all downloaded *.csv files are available [on GitHub](https://github.com/dasneddon/local_bias).
-
-Alternatively you can clone the repository via CLI:
-
-```{bash}
-#| eval: false 
-#| echo: true
-#| output: false
-
-git clone https://github.com/dasneddon/local_bias.git
-```
+This project is being compiled using [Quarto](https://quarto.org) in [RStudio](https://posit.co/downloads/). Not only does Quarto allow for professional and polished looking content; Quarto, RStudio, and [R](https://www.r-project.org/) [@rcite] are "free". There is a learning curve, so opportunity costs will apply. Another advantage of Quarto is the ability to embed and share code chunks in the final product. To that end: I will walk through the processes, step by step.
 
 ## Libraries and Options
 
@@ -151,11 +139,6 @@ options(scipen = 999)
 `ggplot2` [@ggplot]\
 `modelsummary` [@modelsummary]\
 `utf8` [@utf8]\
-
-
-
-
-
 
 ## Data Imports and Data Cleaning
 
@@ -573,7 +556,17 @@ These results indicate that while U.S.-Canadian trade is very strong, if the int
 
 # GitHub Repository and e-Portfolio
 
-The files associated with this project are available on [GitHub](https://github.com/dasneddon/local_bias) [@dasneddon2024localbias].
+The entire project including all downloaded *.csv files are available on [GitHub](https://github.com/dasneddon/local_bias). [@dasneddon2024localbias].
+
+Alternatively, the repository can be cloned via CLI:
+
+```{bash}
+#| eval: false 
+#| echo: true
+#| output: false
+
+git clone https://github.com/dasneddon/local_bias.git
+```
 
 The requirements for this assignment also include an e-Portfolio which can be found [here](https://sites.google.com/odu.edu/david-sneddon/).
 
