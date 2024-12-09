@@ -72,7 +72,7 @@ Q <- 0
 
 # Introduction
 
-The gravity model of international trade. A relatively intuitive and straightforward understanding of international trade. At it's most basic level, trade between two entities will increase with the size of their economies and decrease with their distance from each other. It is so intuitive that it is sometimes called the naïve gravity model. [@RN66]\
+The gravity model of international trade. A relatively intuitive and straightforward understanding of international trade. At its most basic level, trade between two entities will increase with the size of their economies and decrease with their distance from each other. It is so intuitive that it is sometimes called the naïve gravity model. [@RN66]\
 
 $$
 X_{ij}=\beta_0Y^{\beta_{1}}_{i}Y^{\beta_{2}}_{j}dist^{\beta_{3}}_{ij}\varepsilon_{ij}
@@ -550,7 +550,7 @@ Standard errors in all cases are robust to heteroscedasticty.
 
 It appears that NAFTA has not simply had a muted effect on trade between the U.S. and Canada. Rather, interprovincial trade within Canada has an even greater advantage over trade with the U.S. than it did back in 1988. Simply put, the effect of the international border is even stronger than it was before NAFTA was ratified. 
 
-Notably, total Canadian imports from the United States was $\$74.5 B$ in 1989 with a GDP of $\$567.21 B$, a ratio of $13.2\%$. In 2019, however, the imports were $\$230 B$ with a GDP of $\$1.73 T$ a ratio of $13.3\%$ [@tradingeconomics_canada_imports]. Therefore, this model should be interpreted to mean that Canadian imports from the U.S. have waned. As a percentage of GDP they have remained virtually unchanged. The data also indicates that the most active trading partners in the sample are, in fact, the Canadian province of Ontario and the U.S. State of Michigan [@local_bias_dataset]. 
+Notably, total Canadian imports from the United States was $\$74.5 B$ in 1989 with a GDP of $\$567.21 B$, a ratio of $13.2\%$. In 2019, however, the imports were $\$230 B$ with a GDP of $\$1.73 T$ a ratio of $13.3\%$ [@tradingeconomics_canada_imports]. Therefore, this model should not be interpreted to mean that Canadian imports from the U.S. have waned. As a percentage of GDP they have remained virtually unchanged. The data also indicates that the most active trading partners in the sample are, in fact, the Canadian province of Ontario and the U.S. State of Michigan [@local_bias_dataset]. 
 
 These results indicate that while U.S.-Canadian trade is very strong, if the international border had no effect and the naïve gravity model held, trade would be much stronger. The results also highlight an omitted variable bias. The naïve gravity model's coefficients $\{\beta_1,\beta_2, \beta_3\}$ also hold up with $p<0.001$ albeit with greater variance with the lowest $R^2$ all six tests. 
 
